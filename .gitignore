@@ -1,0 +1,47 @@
+# General Python files and directories to ignore
+# Python bytecode cache directories
+__pycache__/
+
+# Python package distribution files
+*.egg-info/
+# Build directories
+build/
+dist/
+
+# PyCharm specific files and directories
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Jupyter Notebook specific files and directories
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+# Autosave files created by Jupyter Lab
+*.autosave
+
+# Environment-specific files
+# Virtual environment directories
+venv/
+.env
+.env.*
+
+# Log files
+*.log
+
+# Temporary files
+*.tmp
+tmp_*
+
+# Data folder
+!data/feature/.gitkeep
+data/feature/*
+
+!data/input/.gitkeep
+data/input/*
+
+!data/model/.gitkeep
+data/model/*
+
+!data/prediction/.gitkeep
+data/prediction/*

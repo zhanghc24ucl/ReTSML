@@ -1,0 +1,71 @@
+#!/usr/bin/env python3
+
+import argparse
+
+
+def run_etl(data_root):
+    """Run the ETL process with the specified data root."""
+    print(f"Running ETL with data root: {data_root}")
+    from retsml.data import raw_to_sample
+    raw_to_sample(data_root)
+
+
+def build_features(feature_names, data_root):
+    """Build features with the given arguments and data root."""
+    print(f"Building features with data root: {data_root}")
+    from retsml.feature import feature_builder
+    from time import time
+    for fname in feature_names:
+        print(f'Starting building {fname}...')
+        start_time = time()
+        builder = feature_builder(fname)
+        s, m, f = builder.build()
+        end_time = time()
+        print(f'Building `{fname}` with {f} features for ({s}, {m}) samples '
+              f'in {end_time - start_time:.2f} seconds.')
+
+
+def main():
+    """
+    Main function to parse command line arguments and execute the corresponding task.
+
+    Usage:
+        ./run etl [--data_root=<path>]
+        ./run feature <feature_names> [--data_root=<path>]
+
+    Examples:
+        ./run etl
+        ./run feature time,ret,ret_lag
+        ./run etl --data_root=./other
+        ./run feature time,ret,ret_lag --data_root=./other
+    """
+    arg_parser = argparse.ArgumentParser(description='Run ReTSML tasks')
+
+    # Add a common argument for data root
+    arg_parser.add_argument('--data_root', type=str, default='./data', help='Root directory for data')
+
+    # Create subparsers for different tasks
+    subparsers = arg_parser.add_subparsers(dest='task', help='Sub-command help')
+
+    # etl subcommand
+    subparsers.add_parser('etl', help='Run ETL process')
+
+    # feature subcommand
+    parser_feature = subparsers.add_parser('feature', help='Build features')
+    parser_feature.add_argument(
+        'feature_names', type=str, help='Comma-separated list of feature arguments')
+
+    # Parse command line arguments
+    args = arg_parser.parse_args()
+
+    if args.task == 'etl':
+        run_etl(args.data_root)
+    elif args.task == 'feature':
+        feature_names = args.feature_names.split(',')
+        build_features(feature_names, args.data_root)
+    else:
+        arg_parser.print_help()
+
+
+if __name__ == '__main__':
+    main()
