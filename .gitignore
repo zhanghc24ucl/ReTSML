@@ -34,14 +34,4 @@ venv/
 tmp_*
 
 # Data folder
-!data/feature/.gitkeep
-data/feature/*
-
-!data/input/.gitkeep
-data/input/*
-
-!data/model/.gitkeep
-data/model/*
-
-!data/prediction/.gitkeep
-data/prediction/*
+data/*

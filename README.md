@@ -33,6 +33,40 @@ Here is a typical work flow:
 ./ReTSML evaluate GBM gbm --dataset=all
 ```
 
+## Data folder
+
+The default data folder is `data`, with a structure like:
+```bash
+$ tree data
+data
+├── feature
+│   ├── ${feature_name}.npz
+├── input
+│   ├── cnIXfuts_raw.npz
+│   └── sample.npz
+├── model
+│   ├── ${model_name}
+│   │   ├── ${config_grid}_${split_id}.mod
+│   └── tuned_${model_name}_${config_grid}_${metric}.bin
+└── prediction
+```
+
+For a newly cloned workspace, it is recommended to create an empty data folders:
+```bash
+$ mkdir data data/input data/feature data/model data/prediction
+$ tree data
+data
+├── feature
+├── input
+├── model
+└── prediction
+```
+
+Other data folders are supported, with environment variables `DATA_ROOT`.
+For example, if another data folder located at `/content/drive/$data_path` is
+used, one should set the environment variable `DATA_ROOT=/content/drive/$data_path`
+while running scripts.
+
 ## Documents
 
 Please refer to 
