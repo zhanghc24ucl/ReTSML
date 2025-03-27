@@ -51,7 +51,7 @@ data
 └── prediction
 ```
 
-For a newly cloned workspace, it is recommended to create an empty data folders:
+For a newly cloned workspace, it is recommended to create an empty data folder:
 ```bash
 $ mkdir data data/input data/feature data/model data/prediction
 $ tree data

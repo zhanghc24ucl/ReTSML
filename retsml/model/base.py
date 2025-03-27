@@ -57,8 +57,10 @@ class ModelBase:
             test_y = test_y[:, :, self.horizon]
             res_label.append(test_y)
 
+            print('start to test', test0_ix)
             pred_y = self._train_predict(test0_ix, train_x, train_y, test_x)
             res_pred.append(pred_y)
+            print('done')
 
             test_size = test_x.shape[0]
             res_time.append(all_time[test0_ix:test0_ix+test_size])
@@ -70,6 +72,21 @@ class ModelBase:
 
         from ..data import PredictionData
         return PredictionData(time=res_time, norm_ret_pred=res_pred, norm_ret_label=res_label)
+
+
+class PoolingModelBase(ModelBase):
+    def _load_or_train(self, split_id, train_x, train_y):
+        raise NotImplementedError()
+
+    def _train_predict(self, split_id, train_x, train_y, test_x):
+        model = self._load_or_train(split_id, train_x, train_y)
+        assert self.train_mode == 'pooling'
+        from numpy import empty
+        n_test, n_tgts, n_features = test_x.shape
+        pred = empty((n_test, n_tgts), dtype=float)
+        for j in range(n_tgts):
+            pred[:, j] = model.predict(test_x[:, j])
+        return pred
 
 
 _REGISTERED_MODELS = {}

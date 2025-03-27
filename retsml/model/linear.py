@@ -3,14 +3,16 @@ from sklearn.linear_model import Lars, Lasso, LinearRegression
 from .base import ModelBase, model
 
 CONFIGS = {
-    'lasso': [f'lasso_{f}_{j:.2f}' for j in [0.01, 0.03, 0.1, 0.3, 1] for f in ('f1', 'f2')],
-    'lars': [f'lars_{f}_{j}' for j in [10, 15, 25, 50] for f in ('f1', 'f2')],
-    'lasso_p': [f'lasso_{f}_{j:.2f}_p' for j in [0.01, 0.03, 0.1, 0.3, 1] for f in ('f1', 'f2')],
-    'lars_p': [f'lars_{f}_{j}_p' for j in [10, 15, 25, 50] for f in ('f1', 'f2')],
+    'lasso':         [f'lasso_{f}_{j:.2f}'   for j in [0.01, 0.03, 0.1, 0.3, 1] for f in ('f1', 'f2')],
+    'lasso_pooling': [f'lasso_{f}_{j:.2f}_p' for j in [0.01, 0.03, 0.1, 0.3, 1] for f in ('f1', 'f2')],
+
+    'lars':         [f'lars_{f}_{j}'   for j in [10, 15, 25, 50] for f in ('f1', 'f2')],
+    'lars_pooling': [f'lars_{f}_{j}_p' for j in [10, 15, 25, 50] for f in ('f1', 'f2')],
 }
 FEATURE_SETS = {
     'f1': ('ret',),
     'f2': ('ret', 'time'),
+    'f3': ('ret', 'lag_ret', 'time'),
 }
 CONST_ARGS = {
     'train_size': None,

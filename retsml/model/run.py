@@ -1,11 +1,13 @@
 from .base import create_model
 from .linear import CONFIGS as LR_CONFIGS
 from .gbm import CONFIGS as GBM_CONFIGS
+from .pfn import CONFIGS as PFN_CONFIGS
 from ..data import DATA_ROOT
 
 ALL_CONFIGS = {
     'linear': LR_CONFIGS,
     'GBM': GBM_CONFIGS,
+    'tabpfn': PFN_CONFIGS,
 }
 
 

@@ -464,7 +464,6 @@ class SampleData:
             # Yield the training and testing sets
             yield ix1, train_x, train_y, test_x, test_y
 
-
 def load_sample_data():
     """
     Load preprocessed sample data from disk.

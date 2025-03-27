@@ -32,6 +32,8 @@ venv/
 # Temporary files
 *.tmp
 tmp_*
+demo_*
 
 # Data folder
 data/*
+lightning_logs/*
