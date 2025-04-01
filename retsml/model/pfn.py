@@ -2,14 +2,15 @@ from .base import PoolingModelBase, model
 
 CONFIGS = {
     'pfn': ['f3'],
+    'f5': ['f5_960', 'f5_1920'],
 }
 FEATURE_SETS = {
     'f1': ('ret',),
     'f2': ('ret', 'time'),
     'f3': ('ret', 'lag_ret', 'time'),
+    'f5': ('ret', 'macd', 'vol', 'hfreq', 'time'),
 }
 CONST_ARGS = {
-    'train_size': 8*240,
     'label_type': 'norm5',
     'pred_type': 'norm_ret',
     'train_mode': 'pooling',
@@ -22,7 +23,11 @@ class TabPFN(PoolingModelBase):
         # parse config
         parts = config.split('_')
         feature_set = FEATURE_SETS[parts[0]]
-        super().__init__(config, feature_set, **CONST_ARGS)
+        if len(parts) == 1:
+            train_size = 8*240
+        else:
+            train_size = int(parts[1])
+        super().__init__(config, feature_set, train_size=train_size, **CONST_ARGS)
 
     def _create(self):
         from tabpfn import TabPFNRegressor
@@ -40,11 +45,8 @@ class TabPFN(PoolingModelBase):
 
         assert self.train_mode == 'pooling'
         m = self._create()
-        print(train_x.shape)
         k = train_x.shape[-1]
-        print('start to train')
         m.fit(train_x.reshape(-1, k), train_y.flatten())
-        print('done')
         with open(mpath, 'wb') as fh:
             dump(m, fh)
         return m

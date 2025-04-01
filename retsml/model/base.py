@@ -1,5 +1,39 @@
 from typing import Type
 
+
+class ModelConfig:
+    def __init__(self, **kwargs):
+        self.attrs = set()
+        for k, v in kwargs.items():
+            setattr(self, k, v)
+            self.attrs.add(k)
+
+    def set_config(self, key, value):
+        setattr(self, key, value)
+        self.attrs.add(key)
+
+    def __getstate__(self):
+        state = {}
+        for attr in self.attrs:
+            state[attr] = getattr(self, attr)
+        return state
+
+    def __setstate__(self, state):
+        for k, v in state.items():
+            setattr(self, k, v)
+            self.attrs.add(k)
+
+    def __reduce__(self):
+        return type(self), (), self.__getstate__()
+
+    def to_str(self, keys=None):
+        if keys is None:
+            keys = self.attrs
+        else:
+            keys = set(keys) & self.attrs
+        return '_'.join([str(getattr(self, k)) for k in sorted(keys)])
+
+
 class ModelBase:
     def __init__(
             self, config, feature_set,
@@ -36,31 +70,31 @@ class ModelBase:
         raise NotImplementedError()
 
     def train_predict(self, in_sample=False):
-        from ..data import load_feature_data, load_sample_data
+        from ..data import load_sample_data
 
         sample_data = load_sample_data()
-        v, keys = load_feature_data(self.feature_set)
-        sample_data.attach_features(v, keys)
+        sample_data.load_features(self.feature_set)
 
-        mode = 'in-sample' if in_sample else 'all'
+        scope = 'in-sample' if in_sample else 'all'
         all_time = sample_data.samples['time']
 
         res_time = []
         res_label = []
         res_pred = []
-        for test0_ix, train_x, train_y, test_x, test_y in \
-                sample_data.dataset(self.train_size, self.label_type, mode):
-            train_x = train_x[:, :, :]
+        args = dict(
+            train_size=self.train_size,
+            scope=scope,
+            stack_feature=self.train_mode=='cross',
+            y_type=self.label_type,
+        )
+        for test0_ix, train_x, train_y, test_x, test_y in sample_data.dataset(**args):
             train_y = train_y[:, :, self.horizon]
-            test_x = test_x[:, :, :]
-
             test_y = test_y[:, :, self.horizon]
             res_label.append(test_y)
 
-            print('start to test', test0_ix)
+            t0 = time_ns()
             pred_y = self._train_predict(test0_ix, train_x, train_y, test_x)
             res_pred.append(pred_y)
-            print('done')
 
             test_size = test_x.shape[0]
             res_time.append(all_time[test0_ix:test0_ix+test_size])

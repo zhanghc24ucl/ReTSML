@@ -17,20 +17,20 @@ Here is a typical work flow:
 
 ```bash
 # show help and usage
-./ReTSML --help
+bin/ReTSML --help
 
 # run ETL task
-./ReTSML ETL
+bin/ReTSML ETL
 
 # build `ret` and `time` features
-./ReTSML feature ret,time
+bin/ReTSML feature ret,time
 
 # train all models under config_grid and tune best config
-./ReTSML tune GBM gbm --metric=RMSE
+bin/ReTSML tune GBM gbm --metric=RMSE
 
 # evaluate models
 # FIXME: not implemented yet
-./ReTSML evaluate GBM gbm --dataset=all
+bin/ReTSML evaluate GBM gbm --dataset=all
 ```
 
 ## Data folder

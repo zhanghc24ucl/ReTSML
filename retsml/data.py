@@ -15,6 +15,9 @@ Functions:
 - load_feature_data: Loads feature data from disk based on the provided feature names.
 """
 from os import environ
+
+import numpy as np
+
 DATA_ROOT = environ.get('DATA_ROOT', './data')
 
 
@@ -322,6 +325,7 @@ class SampleData:
         self.feature_value = None
         self.feature_keys = None
         self.feature_key_index = {}
+        self.feature_is_universal = None
 
     def __len__(self):
         return len(self.samples)
@@ -338,6 +342,10 @@ class SampleData:
         """
         self.raw_data = raw_data
 
+    def load_features(self, feature_names):
+        for name in feature_names:
+            self.attach_features(*load_feature_data(name))
+
     def attach_features(self, value, feature_keys):
         """
         Attach feature values and keys to the SampleData object.
@@ -348,13 +356,23 @@ class SampleData:
         :param value: Feature values.
         :param feature_keys: Feature keys corresponding to the feature values.
         """
+        from numpy import concatenate, repeat, newaxis, full
+        if value.ndim == 2:
+            assert self.feature_value is not None, 'Cannot load universal feature first.'
+            n_targets = self.feature_value.shape[1]
+            value = repeat(value[:, newaxis, :], n_targets, axis=1)
+            universal = full(value.shape[-1], True, dtype=bool)
+        else:
+            universal = full(value.shape[-1], False, dtype=bool)
+
         if self.feature_value is None:
             self.feature_value = value
             self.feature_keys = tuple(feature_keys)
+            self.feature_is_universal = universal
         else:
-            from numpy import concatenate
             self.feature_value = concatenate((self.feature_value, value), axis=2)
             self.feature_keys = self.feature_keys + tuple(feature_keys)
+            self.feature_is_universal = concatenate((self.feature_is_universal, universal))
 
         # Update feature key index
         self.feature_key_index = {k: j for j, k in enumerate(self.feature_keys)}
@@ -417,37 +435,85 @@ class SampleData:
         'norm5': 'norm_y^5',
     }
 
-    def dataset(self, train_size=None, y_type='norm5', mode='in-sample'):
-        """
-        Generates datasets based on the specified mode and training set size.
-
-        :param train_size: The size of the training set. If None, use the default size.
-        :param y_type: Which type of y is used, which can be 'raw', 'norm', 'norm5'
-        :param mode: The dataset mode, which can be 'in-sample', 'out-sample', or 'all'.
-
-        :return: generator providing (test0_ix, trainX, trainY, testX, testY)
-        """
-        # Ensure the mode parameter is valid
-        assert mode in ('in-sample', 'out-sample', 'all')
-        assert y_type in ('raw', 'norm', 'norm5')
+    def get_splits(self, scope):
+        assert scope in ('demo', 'in-sample', 'out-sample', 'all')
 
         # Retrieve the dataset splits information
         splits = self.splits
 
         # Filter the dataset based on the specified mode
-        if mode == 'in-sample':
+        if scope == 'in-sample':
             splits = splits[~splits['out-sample']]
-        elif mode == 'out-sample':
+        elif scope == 'out-sample':
             splits = splits[splits['out-sample']]
-
-        # Retrieve feature and label data
-        x = self.feature_value
-        y = self.samples[self._Y_FIELD[y_type]]
+        elif scope == 'demo':
+            splits = splits[15:16]
 
         # Extract indices for training and testing sets
-        train_ix = splits['train_end_ix']
-        test_ix = splits['test_end_ix']
+        return splits
 
+    def raw_dataset(self, y_type='norm5', features=None, stack_feature=False):
+        # Retrieve feature and label data
+        x = self.feature_value
+        if features is not None:
+            ix = [self.feature_key_index[k] for k in features]
+            x = x[:, :, ix]
+            univ_tags = self.feature_is_universal[ix]
+        else:
+            univ_tags = self.feature_is_universal
+
+        if stack_feature:
+            n_samples, n_targets, n_features = x.shape
+            n_universal = univ_tags.sum()
+            n_stack = n_targets*(n_features - n_universal) + n_universal
+            stacked_x = np.empty((n_samples, n_stack), dtype=x.dtype)
+
+            column_ptr = 0
+            for j in range(n_features):
+                if univ_tags[j]:
+                    stacked_x[:, column_ptr] = x[:, 0, j]
+                    column_ptr += 1
+                else:
+                    stacked_x[:, column_ptr:column_ptr+n_targets] = x[:, :, j]
+                    column_ptr += n_targets
+            x = stacked_x
+
+        # Ensure the y_type parameter is valid
+        assert y_type in ('raw', 'norm', 'norm5')
+        y = self.samples[self._Y_FIELD[y_type]]
+
+        return self.samples['time'], x, y
+
+    def dataset(
+            self,
+            train_size=None,
+            features=None,
+            y_type='norm5',
+            scope='in-sample',
+            rolling_size=None,
+            stack_feature=False,
+            to_tensor=False):
+        """
+        Generates datasets based on the specified scope and training set size.
+
+        Suppose we have f_1 universal features and f_2 general features
+        * If stack_feature is False (by default): X shape is (n, f_1+f_2, m)
+        * If stack_feature is True:               X shape is (n, f_1+f_2*m)
+
+        :param train_size: The size of the training set. If None, use the default size.
+        :param features: The selected features. If None, use all features.
+        :param y_type: Which type of y is used, which can be 'raw', 'norm', 'norm5'
+        :param scope: The dataset scope, which can be 'in-sample', 'out-sample', or 'all'.
+        :param rolling_size: If rolling_size is specified, each sample is stacked with last `rolling_size` data.
+        :param stack_feature: Whether stacking features across targets.
+        :param to_tensor: Return `torch.tensor` if True.
+        :return: generator providing (test0_ix, trainX, trainY, testX, testY)
+        """
+        splits = self.get_splits(scope)
+        train_ix, test_ix = splits['train_end_ix'], splits['test_end_ix']
+        _, x, y = self.raw_dataset(y_type, features, stack_feature)
+
+        from .util import split_dataset
         # Iterate over each dataset split to generate training and testing sets
         for j in range(len(splits)):
             ix1 = train_ix[j]
@@ -455,14 +521,21 @@ class SampleData:
             ix0 = 0 if train_size is None else max(0, ix1 - train_size)
             ix2 = test_ix[j]
 
-            # Slice the feature and label data for training and testing sets
-            train_x = x[ix0:ix1]
-            train_y = y[ix0:ix1]
-            test_x = x[ix1:ix2]
-            test_y = y[ix1:ix2]
-
+            train_x, train_y, test_x, test_y = split_dataset(
+                x, y, split_ix=ix1, begin_ix=ix0, end_ix=ix2,
+                rolling_size=rolling_size, to_tensor=to_tensor)
             # Yield the training and testing sets
             yield ix1, train_x, train_y, test_x, test_y
+
+    def feature_stats(self, scope='in-sample'):
+        from .feature.stats import FeatureStats
+        time, x, y = self.raw_dataset('norm5')
+        if scope == 'in-sample':
+            from .const import SAMPLE_SPLIT
+            ix = time.searchsorted(SAMPLE_SPLIT)
+            x, y = x[:ix], y[:ix]
+        return FeatureStats(self.feature_keys, x, y)
+
 
 def load_sample_data():
     """
@@ -473,41 +546,19 @@ def load_sample_data():
     from numpy import load
 
     with load(f'{DATA_ROOT}/input/sample.npz') as data:
-        samples, splits = data['samples'], data['splits']
-    return SampleData(samples, splits)
+        return SampleData(data['samples'], data['splits'])
 
 
-def load_feature_data(feature_names):
+def load_feature_data(feature_name):
     """
     Load feature data from disk based on the provided feature names.
 
-    :param feature_names: List of feature names to load.
-    :return: Tuple containing concatenated feature values and combined feature keys.
+    :param feature_name: feature_name to load.
+    :return: Tuple containing feature values and feature keys.
     """
-    from numpy import concatenate, load
-    values = []
-    all_keys = []
-
-    n, m, f = None, None, None
-
-    for fname in feature_names:
-        with load(f'{DATA_ROOT}/feature/{fname}.npz') as data:
-            value, keys = data['value'], data['feature_keys']
-        if n is None:
-            n, m, f = value.shape
-            assert len(keys) == f
-        else:
-            n1, m1, f1 = value.shape
-            assert n == n1 and m == m1
-            assert len(keys) == f1
-            f += f1
-
-        values.append(value)
-        all_keys.extend(keys)
-
-    values = concatenate(values, axis=2)
-    assert values.shape == (n, m, f)
-    return values, tuple(all_keys)
+    from numpy import load
+    with load(f'{DATA_ROOT}/feature/{feature_name}.npz') as data:
+        return data['value'], tuple(data['feature_keys'])
 
 
 class PredictionData:

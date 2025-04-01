@@ -18,10 +18,17 @@ def build_features(feature_names):
         print(f'Building features: {fname}...')
         start_time = time()
         builder = feature_builder(fname)
-        s, m, f = builder.build()
+        rv = builder.build()
+        s = rv.shape[0]
+        f = rv.shape[-1]
         end_time = time()
-        print(f'Build `{fname}` with {f} features for ({s}, {m}) samples '
-              f'in {end_time - start_time:.2f} seconds.')
+        if rv.ndim == 2:
+            print(f'Build `{fname}` with {f} global features for {s} samples '
+                  f'in {end_time - start_time:.2f} seconds.')
+        else:
+            m = rv.shape[1]
+            print(f'Build `{fname}` with {f} features for ({s}, {m}) samples '
+                  f'in {end_time - start_time:.2f} seconds.')
 
 
 def tune_model(model_name, config_grid, metric):

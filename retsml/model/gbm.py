@@ -8,6 +8,13 @@ CONFIGS = {
         for f in ['f2', 'f3']
         for depth, nL in [(4, 10), (5, 24), (6, 40)]  # default (-1, 32)
         for nE in [100, 200, 300]  # default (100, 0)
+    ],
+    'f5': [
+        f'{f}_{lr}_{nE}_{depth}_{nL}'
+        for lr in [0.07, 0.1]  # default 0.1
+        for f in ['f5']
+        for depth, nL in [(4, 10), (5, 24), (6, 40)]  # default (-1, 32)
+        for nE in [100, 200, 300]  # default (100, 0)
     ]
 }
 
@@ -15,6 +22,7 @@ FEATURE_SETS = {
     'f1': ('ret',),
     'f2': ('ret', 'time'),
     'f3': ('ret', 'lag_ret', 'time'),
+    'f5': ('ret', 'macd', 'vol', 'hfreq', 'time'),
 }
 CONST_ARGS = {
     'train_size': None,
